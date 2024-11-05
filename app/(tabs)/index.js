@@ -9,12 +9,13 @@ import {
   Alert,
   Vibration,
   TextInput,
-  ScrollView,
+  ScrollView
 } from "react-native";
 import { CameraView } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { Picker } from "@react-native-picker/picker";
+import axios from "axios";
 
 const App = () => {
   const [qrValue, setQrValue] = useState("");
@@ -32,19 +33,11 @@ const App = () => {
     warranty_date: "",
     decommission_date: "",
     image: null,
-    coordinates: null,
+    coordinates: null
   });
 
-  const [categories, setCategories] = useState([
-    "Category 1",
-    "Category 2",
-    "Category 3",
-  ]); // Example categories
-  const [employees, setEmployees] = useState([
-    "Employee 1",
-    "Employee 2",
-    "Employee 3",
-  ]); // Example employees
+  const [categories, setCategories] = useState([]); // Example categories
+  const [employees, setEmployees] = useState([]); // Example employees
 
   const requestPermissions = async () => {
     if (Platform.OS === "android") {
@@ -52,12 +45,15 @@ const App = () => {
         const granted = await PermissionsAndroid.requestMultiple([
           PermissionsAndroid.PERMISSIONS.CAMERA,
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE
         ]);
         if (
-          granted["android.permission.CAMERA"] === PermissionsAndroid.RESULTS.GRANTED &&
-          granted["android.permission.ACCESS_FINE_LOCATION"] === PermissionsAndroid.RESULTS.GRANTED &&
-          granted["android.permission.READ_EXTERNAL_STORAGE"] === PermissionsAndroid.RESULTS.GRANTED
+          granted["android.permission.CAMERA"] ===
+            PermissionsAndroid.RESULTS.GRANTED &&
+          granted["android.permission.ACCESS_FINE_LOCATION"] ===
+            PermissionsAndroid.RESULTS.GRANTED &&
+          granted["android.permission.READ_EXTERNAL_STORAGE"] ===
+            PermissionsAndroid.RESULTS.GRANTED
         ) {
           console.log("Permissions granted");
         } else {
@@ -78,7 +74,7 @@ const App = () => {
     setQrValue(data);
     setAssetDetails((prev) => ({
       ...prev,
-      code: data, // Set the scanned barcode data as the value of code
+      code: data // Set the scanned barcode data as the value of code
     }));
     getCoordinates(); // Get coordinates when barcode is scanned
     setShowCamera(false); // Hide camera after scan
@@ -90,7 +86,7 @@ const App = () => {
       let location = await Location.getCurrentPositionAsync({});
       setAssetDetails((prev) => ({
         ...prev,
-        coordinates: `${location.coords.latitude}, ${location.coords.longitude}`,
+        coordinates: `${location.coords.latitude}, ${location.coords.longitude}`
       }));
     } else {
       Alert.alert("Location permission denied");
@@ -102,7 +98,7 @@ const App = () => {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 3],
-      quality: 1,
+      quality: 1
     });
 
     if (!result.canceled) {
@@ -113,12 +109,117 @@ const App = () => {
   const handleInputChange = (name, value) => {
     setAssetDetails((prev) => ({ ...prev, [name]: value }));
   };
-
-  const handleSubmit = () => {
-    // Handle the submission logic here, e.g., send data to your backend
-    console.log(assetDetails);
-    Alert.alert("Asset Details Submitted", JSON.stringify(assetDetails));
+  const handleSubmit = async () => {
+    // Extract asset details
+    const {
+      name,
+      category_id,
+      employee_id,
+      description,
+      code,
+      serial_number,
+      status,
+      purchase_date,
+      warranty_date,
+      decommission_date,
+      image,
+      coordinates,
+    } = assetDetails;
+  
+    try {
+      // Send data to your backend
+      const response = await fetch(
+        "https://test.tokenlessreport.optitech.co.ke/api/v1/assets",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name,
+            category_id,
+            employee_id,
+            description,
+            code,
+            serial_number,
+            status,
+            purchase_date,
+            warranty_date,
+            decommission_date,
+            image,
+            coordinates,
+          }),
+        }
+      );
+  
+      // Parse response JSON
+      const responseData = await response.json();
+  
+      // Check if submission was successful
+      if (response.status === 201) {
+        // Display success message
+        Alert.alert("Asset Details Submitted", JSON.stringify(assetDetails));
+        
+        // Reset form
+        setAssetDetails({
+          name: "",
+          category_id: "",
+          employee_id: "",
+          description: "",
+          code: "",
+          serial_number: "",
+          status: "available",
+          purchase_date: "",
+          warranty_date: "",
+          decommission_date: "",
+          image: null,
+          coordinates: null,
+        });
+  
+        setQrValue("");
+        setShowCamera(false);
+      } else if (response.status === 400) {
+        // Display validation error messages
+        const errorMessages = Object.values(responseData).join("\n");
+        Alert.alert("Validation Errors", errorMessages);
+        console.log("Validation errors:", responseData);
+      } else {
+        // Display generic error message for other statuses
+        Alert.alert("Failed to submit asset details");
+        console.log("Submission failed:", responseData);
+      }
+    } catch (error) {
+      // Display network or other error
+      Alert.alert("Network error", "Failed to connect to the server");
+      console.log("Network error:", error);
+    }
   };
+  
+
+  //Fetch categories
+  const fetchCategories = async () => {
+    const response = await axios.get(
+      "https://test.tokenlessreport.optitech.co.ke/api/v1/categories"
+    );
+    const data = response.data;
+    console.log(data);
+    setCategories(data);
+  };
+
+  //Fetch employees
+  const fetchEmployees = async () => {
+    const response = await axios.get(
+      "https://test.tokenlessreport.optitech.co.ke/api/v1/employees"
+    );
+    const data = response.data;
+    console.log(data);
+    setEmployees(data);
+  };
+
+  useEffect(() => {
+    fetchCategories();
+    fetchEmployees();
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -137,8 +238,8 @@ const App = () => {
               "ean8",
               "interleaved2of5",
               "itf14",
-              "upce",
-            ],
+              "upce"
+            ]
           }}
           style={styles.camera}
           facing="back"
@@ -154,13 +255,15 @@ const App = () => {
         </Text>
       </View>
 
-
-      <ScrollView style={styles.formContainer} contentContainerStyle={{ flexGrow: 1 }}>
+      <ScrollView
+        style={styles.formContainer}
+        contentContainerStyle={{ flexGrow: 1 }}
+      >
         <TouchableOpacity
           onPress={() => setShowCamera(!showCamera)}
           style={styles.toggleButton}
         >
-          <Text style={style={ color: "white" , textAlign: "center"}}>
+          <Text style={(style = { color: "white", textAlign: "center" })}>
             {showCamera ? "Hide Scanner" : "Scan Barcode/QR Code"}
           </Text>
         </TouchableOpacity>
@@ -170,8 +273,17 @@ const App = () => {
           onChangeText={(text) => handleInputChange("name", text)}
         />
         {/* Category Picker */}
-        <View style={{ borderWidth: 1, borderColor: "gray", borderRadius: 1, marginBottom: 10, width: "90%", alignSelf: "center" }}>
-                    <Picker
+        <View
+          style={{
+            borderWidth: 1,
+            borderColor: "gray",
+            borderRadius: 1,
+            marginBottom: 10,
+            width: "90%",
+            alignSelf: "center"
+          }}
+        >
+          <Picker
             selectedValue={assetDetails.category_id}
             onValueChange={(itemValue) =>
               handleInputChange("category_id", itemValue)
@@ -179,12 +291,25 @@ const App = () => {
             style={styles.picker}
           >
             <Picker.Item label="Select Category" value="" color="gray" />
-            {categories.map((category, index) => (
-              <Picker.Item key={index} label={category} value={category} />
+            {categories.map((category) => (
+              <Picker.Item
+                key={category.id}
+                label={category.name}
+                value={category.id}
+              />
             ))}
           </Picker>
         </View>
-        <View style={{ borderWidth: 1, borderColor: "gray", borderRadius: 1, marginBottom: 10, width: "90%", alignSelf: "center" }}>
+        <View
+          style={{
+            borderWidth: 1,
+            borderColor: "gray",
+            borderRadius: 1,
+            marginBottom: 10,
+            width: "90%",
+            alignSelf: "center"
+          }}
+        >
           {/* Employee Picker */}
           <Picker
             selectedValue={assetDetails.employee_id}
@@ -194,8 +319,12 @@ const App = () => {
             style={styles.picker}
           >
             <Picker.Item label="Select Employee" value="" color="gray" />
-            {employees.map((employee, index) => (
-              <Picker.Item key={index} label={employee} value={employee} />
+            {employees.map((employee) => (
+              <Picker.Item
+                key={employee.id}
+                label={employee.name}
+                value={employee.id}
+              />
             ))}
           </Picker>
         </View>
@@ -248,17 +377,17 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "flex-start",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: "#fff"
   },
   toggleButton: {
     margin: 20,
     padding: 10,
     backgroundColor: "#4CAF50", // Vibrant green
-    borderRadius: 5,
+    borderRadius: 5
   },
   camera: {
     width: "100%",
-    height: "100%",
+    height: "100%"
   },
   focusFrame: {
     position: "absolute",
@@ -270,31 +399,31 @@ const styles = StyleSheet.create({
     borderColor: "white",
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 10,
+    borderRadius: 10
   },
   instructions: {
     color: "white",
     fontSize: 16,
-    textAlign: "center",
+    textAlign: "center"
   },
   buttonContainer: {
     flexDirection: "row",
     justifyContent: "space-around",
     width: "100%",
-    marginVertical: 20,
+    marginVertical: 20
   },
   button: {
     padding: 10,
     backgroundColor: "#2196F3", // Blue
-    borderRadius: 5,
+    borderRadius: 5
   },
   buttonText: {
     color: "white",
-    fontWeight: "bold",
+    fontWeight: "bold"
   },
   formContainer: {
     flex: 1,
-    width: "100%",
+    width: "100%"
   },
   input: {
     height: 50,
@@ -304,18 +433,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     marginBottom: 10,
     width: "90%",
-    alignSelf: "center",
+    alignSelf: "center"
   },
   pickerContainer: {
     width: "90%",
     alignSelf: "center",
-    marginBottom: 10,
+    marginBottom: 10
   },
   picker: {
     height: 50,
     borderColor: "gray",
     borderWidth: 1,
-    borderRadius: 5,
+    borderRadius: 5
   },
   submitButton: {
     padding: 10,
@@ -324,8 +453,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     width: "90%",
     alignSelf: "center",
-    marginBottom: 10,
-  },
+    marginBottom: 10
+  }
 });
 
 export default App;
