@@ -16,6 +16,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { Picker } from "@react-native-picker/picker";
 import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const App = () => {
   const [qrValue, setQrValue] = useState("");
@@ -125,8 +126,10 @@ const App = () => {
       image,
       coordinates,
     } = assetDetails;
+    console.log(assetDetails);
   
     try {
+      const token = await AsyncStorage.getItem("token");
       // Send data to your backend
       const response = await fetch(
         "https://test.tokenlessreport.optitech.co.ke/api/v1/assets",
@@ -134,6 +137,7 @@ const App = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            
           },
           body: JSON.stringify({
             name,
@@ -187,11 +191,14 @@ const App = () => {
         // Display generic error message for other statuses
         Alert.alert("Failed to submit asset details");
         console.log("Submission failed:", responseData);
+        console.log("Response status:", response.status);
       }
     } catch (error) {
       // Display network or other error
       Alert.alert("Network error", "Failed to connect to the server");
       console.log("Network error:", error);
+      console.log("Response status:", response.status);
+
     }
   };
   
