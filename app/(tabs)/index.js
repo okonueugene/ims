@@ -127,6 +127,31 @@ const App = () => {
       coordinates,
     } = assetDetails;
     console.log(assetDetails);
+
+    // Validate form fields
+    if (!name || !category_id ) {
+   switch (true) {
+      case !name:
+        Alert.alert("Validation Error", "Name is required");
+        break;
+      case !category_id:
+        Alert.alert("Validation Error", "Category is required");
+        break;
+      case !employee_id:
+        Alert.alert("Validation Error", "Employee is required");
+        break;
+      case !code:
+        Alert.alert("Validation Error", "Code is required");
+        break;
+      case !serial_number:
+        Alert.alert("Validation Error", "Serial Number is required");
+        break;
+      default:
+        break;
+    }
+    return;
+  }
+
   
     try {
       const token = await AsyncStorage.getItem("token");
